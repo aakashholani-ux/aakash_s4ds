@@ -8,6 +8,7 @@ const hackathonSchema = new mongoose.Schema(
     rules: { type: String, default: "Standard hackathon rules apply." },
     timeline: { type: String, default: "TBD" },
     date: { type: String, required: true },
+    submissionDeadline: { type: Date, required: true },
     location: { type: String, default: "Online" },
     prizePool: { type: String, default: "N/A" }
   },

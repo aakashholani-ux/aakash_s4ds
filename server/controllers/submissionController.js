@@ -7,23 +7,73 @@ const { getIsConnected } = require("../config/db");
 // Create a project submission
 const createSubmission = async (req, res) => {
   try {
-    const { hackathonId, teamName, projectName, githubUrl, demoUrl, description } = req.body;
+    const {
+      hackathonId,
+      teamName,
+      projectName,
+      githubUrl,
+      demoUrl,
+      description
+    } = req.body;
 
-    if (!hackathonId || !teamName || !projectName || !githubUrl || !description) {
+    // Validate required fields
+    if (
+      !hackathonId ||
+      !teamName ||
+      !projectName ||
+      !githubUrl ||
+      !description
+    ) {
       return res.status(400).json({
-        message: "hackathonId, teamName, projectName, githubUrl, and description are required."
+        message:
+          "hackathonId, teamName, projectName, githubUrl, and description are required."
       });
     }
 
     const parsedHackathonId = parseInt(hackathonId, 10);
 
+    if (isNaN(parsedHackathonId)) {
+      return res.status(400).json({
+        message: "Invalid hackathon ID."
+      });
+    }
+
+    // MongoDB path
     if (getIsConnected()) {
-      const hackathonExists = await HackathonModel.findOne({ id: parsedHackathonId });
+      const hackathonExists = await HackathonModel.findOne({
+        id: parsedHackathonId
+      });
+
       if (!hackathonExists) {
-        return res.status(404).json({ message: "Associated hackathon does not exist." });
+        return res.status(404).json({
+          message: "Associated hackathon does not exist."
+        });
+      }
+
+      // Check submission deadline
+      if (!hackathonExists.submissionDeadline) {
+        return res.status(400).json({
+          message: "Submission deadline has not been configured."
+        });
+      }
+
+      const deadline = new Date(hackathonExists.submissionDeadline);
+
+      if (isNaN(deadline.getTime())) {
+        return res.status(400).json({
+          message: "Invalid submission deadline."
+        });
+      }
+
+      if (new Date() > deadline) {
+        return res.status(400).json({
+          message:
+            "Submissions are closed. The submission deadline has passed."
+        });
       }
 
       const totalCount = await SubmissionModel.countDocuments();
+
       const newSubmission = await SubmissionModel.create({
         id: totalCount + 1,
         hackathonId: parsedHackathonId,
@@ -41,12 +91,42 @@ const createSubmission = async (req, res) => {
     }
 
     // Fallback to in-memory store
-    const hackathonExists = hackathonsInMemory.some((h) => h.id === parsedHackathonId);
+    const hackathonExists = hackathonsInMemory.find(
+      (h) => h.id === parsedHackathonId
+    );
+
     if (!hackathonExists) {
-      return res.status(404).json({ message: "Associated hackathon does not exist." });
+      return res.status(404).json({
+        message: "Associated hackathon does not exist."
+      });
     }
 
-    const newId = submissionsInMemory.length > 0 ? Math.max(...submissionsInMemory.map((s) => s.id)) + 1 : 1;
+    // Check submission deadline
+    if (!hackathonExists.submissionDeadline) {
+      return res.status(400).json({
+        message: "Submission deadline has not been configured."
+      });
+    }
+
+    const deadline = new Date(hackathonExists.submissionDeadline);
+
+    if (isNaN(deadline.getTime())) {
+      return res.status(400).json({
+        message: "Invalid submission deadline."
+      });
+    }
+
+    if (new Date() > deadline) {
+      return res.status(400).json({
+        message:
+          "Submissions are closed. The submission deadline has passed."
+      });
+    }
+
+    const newId =
+      submissionsInMemory.length > 0
+        ? Math.max(...submissionsInMemory.map((s) => s.id)) + 1
+        : 1;
 
     const newSubmission = {
       id: newId,
@@ -61,12 +141,16 @@ const createSubmission = async (req, res) => {
 
     submissionsInMemory.push(newSubmission);
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Submission Successful",
       submission: newSubmission
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error while processing submission." });
+    console.error("Submission error:", error);
+
+    return res.status(500).json({
+      message: "Server error while processing submission."
+    });
   }
 };
 
@@ -77,9 +161,12 @@ const getAllSubmissions = async (req, res) => {
       const dbSubmissions = await SubmissionModel.find();
       return res.status(200).json(dbSubmissions);
     }
-    res.status(200).json(submissionsInMemory);
+
+    return res.status(200).json(submissionsInMemory);
   } catch (error) {
-    res.status(500).json({ message: "Server error while fetching submissions." });
+    return res.status(500).json({
+      message: "Server error while fetching submissions."
+    });
   }
 };
 
@@ -89,14 +176,22 @@ const getSubmissionsByHackathon = async (req, res) => {
     const hackathonId = parseInt(req.params.hackathonId, 10);
 
     if (getIsConnected()) {
-      const dbSubmissions = await SubmissionModel.find({ hackathonId });
+      const dbSubmissions = await SubmissionModel.find({
+        hackathonId
+      });
+
       return res.status(200).json(dbSubmissions);
     }
 
-    const filtered = submissionsInMemory.filter((s) => s.hackathonId === hackathonId);
-    res.status(200).json(filtered);
+    const filtered = submissionsInMemory.filter(
+      (s) => s.hackathonId === hackathonId
+    );
+
+    return res.status(200).json(filtered);
   } catch (error) {
-    res.status(500).json({ message: "Server error while fetching hackathon submissions." });
+    return res.status(500).json({
+      message: "Server error while fetching hackathon submissions."
+    });
   }
 };
 

@@ -11,14 +11,25 @@ const createHackathon = async (req, res) => {
       rules,
       timeline,
       date,
+      submissionDeadline,
       location,
       prizePool
     } = req.body;
 
     // Required fields
-    if (!title || !description || !date) {
+    if (!title || !description || !date || !submissionDeadline) {
       return res.status(400).json({
-        message: "Title, description, and date are required."
+        message:
+          "Title, description, date, and submission deadline are required."
+      });
+    }
+
+    // Validate submission deadline
+    const parsedDeadline = new Date(submissionDeadline);
+
+    if (isNaN(parsedDeadline.getTime())) {
+      return res.status(400).json({
+        message: "Invalid submission deadline."
       });
     }
 
@@ -34,6 +45,7 @@ const createHackathon = async (req, res) => {
         rules: rules || "",
         timeline: timeline || "",
         date,
+        submissionDeadline: parsedDeadline,
         location: location || "",
         prizePool: prizePool || ""
       });
@@ -57,6 +69,7 @@ const createHackathon = async (req, res) => {
       rules: rules || "",
       timeline: timeline || "",
       date,
+      submissionDeadline: parsedDeadline.toISOString(),
       location: location || "",
       prizePool: prizePool || ""
     };
@@ -70,12 +83,11 @@ const createHackathon = async (req, res) => {
   } catch (error) {
     console.error("Create hackathon error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error while creating hackathon."
     });
   }
 };
-
 
 // Read all hackathons
 const getAllHackathons = async (req, res) => {
@@ -85,15 +97,13 @@ const getAllHackathons = async (req, res) => {
       return res.status(200).json(dbHackathons);
     }
 
-    // Fallback to in-memory data
     return res.status(200).json(hackathonsInMemory);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error while fetching hackathons."
     });
   }
 };
-
 
 // Read single hackathon by ID
 const getHackathonById = async (req, res) => {
@@ -127,12 +137,11 @@ const getHackathonById = async (req, res) => {
 
     return res.status(200).json(hackathon);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error while fetching hackathon."
     });
   }
 };
-
 
 // Update an existing hackathon
 const updateHackathon = async (req, res) => {
@@ -145,24 +154,44 @@ const updateHackathon = async (req, res) => {
       rules,
       timeline,
       date,
+      submissionDeadline,
       location,
       prizePool
     } = req.body;
 
+    // Validate deadline if provided
+    let parsedDeadline;
+
+    if (submissionDeadline !== undefined) {
+      parsedDeadline = new Date(submissionDeadline);
+
+      if (isNaN(parsedDeadline.getTime())) {
+        return res.status(400).json({
+          message: "Invalid submission deadline."
+        });
+      }
+    }
+
     if (getIsConnected()) {
+      const updateData = {
+        title,
+        description,
+        rules,
+        timeline,
+        date,
+        location,
+        prizePool
+      };
+
+      if (parsedDeadline) {
+        updateData.submissionDeadline = parsedDeadline;
+      }
+
       const updatedHackathon =
         await HackathonModel.findOneAndUpdate(
           { id: hackathonId },
           {
-            $set: {
-              title,
-              description,
-              rules,
-              timeline,
-              date,
-              location,
-              prizePool
-            }
+            $set: updateData
           },
           { new: true }
         );
@@ -207,6 +236,11 @@ const updateHackathon = async (req, res) => {
       hackathonsInMemory[hackathonIndex].date = date;
     }
 
+    if (submissionDeadline !== undefined) {
+      hackathonsInMemory[hackathonIndex].submissionDeadline =
+        parsedDeadline.toISOString();
+    }
+
     if (location !== undefined) {
       hackathonsInMemory[hackathonIndex].location = location;
     }
@@ -221,12 +255,11 @@ const updateHackathon = async (req, res) => {
   } catch (error) {
     console.error("Update hackathon error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error while updating hackathon."
     });
   }
 };
-
 
 // Delete a hackathon
 const deleteHackathon = async (req, res) => {
@@ -274,12 +307,11 @@ const deleteHackathon = async (req, res) => {
   } catch (error) {
     console.error("Delete hackathon error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error while deleting hackathon."
     });
   }
 };
-
 
 module.exports = {
   createHackathon,

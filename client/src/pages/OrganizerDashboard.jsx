@@ -21,6 +21,7 @@ const OrganizerDashboard = () => {
     title: "",
     description: "",
     date: "",
+    submissionDeadline: "",
     location: "",
     prizePool: ""
   });
@@ -30,6 +31,7 @@ const OrganizerDashboard = () => {
     title: "",
     description: "",
     date: "",
+    submissionDeadline: "",
     rules: "",
     timeline: "",
     location: "",
@@ -64,6 +66,7 @@ const OrganizerDashboard = () => {
       title: "",
       description: "",
       date: "",
+      submissionDeadline: "",
       location: "",
       prizePool: ""
     });
@@ -87,6 +90,23 @@ const OrganizerDashboard = () => {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
 
+    if (!createFormData.submissionDeadline) {
+      alert("Please select a submission deadline.");
+      return;
+    }
+
+    const deadline = new Date(createFormData.submissionDeadline);
+
+    if (isNaN(deadline.getTime())) {
+      alert("Please enter a valid submission deadline.");
+      return;
+    }
+
+    if (deadline <= new Date()) {
+      alert("Submission deadline must be in the future.");
+      return;
+    }
+
     try {
       await createHackathon(createFormData);
 
@@ -94,7 +114,6 @@ const OrganizerDashboard = () => {
 
       handleCloseCreateModal();
 
-      // Refresh hackathon table
       await fetchData();
     } catch (err) {
       alert(
@@ -111,10 +130,27 @@ const OrganizerDashboard = () => {
   const handleOpenEditModal = (hackathon) => {
     setEditingHackathon(hackathon);
 
+    let deadline = "";
+
+    if (hackathon.submissionDeadline) {
+      const date = new Date(hackathon.submissionDeadline);
+
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+
+        deadline = `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+    }
+
     setFormData({
       title: hackathon.title || "",
       description: hackathon.description || "",
       date: hackathon.date || "",
+      submissionDeadline: deadline,
       rules: hackathon.rules || "",
       timeline: hackathon.timeline || "",
       location: hackathon.location || "",
@@ -143,8 +179,27 @@ const OrganizerDashboard = () => {
 
     if (!editingHackathon) return;
 
+    if (!formData.submissionDeadline) {
+      alert("Please select a submission deadline.");
+      return;
+    }
+
+    const deadline = new Date(formData.submissionDeadline);
+
+    if (isNaN(deadline.getTime())) {
+      alert("Please enter a valid submission deadline.");
+      return;
+    }
+
+    if (deadline <= new Date()) {
+      alert("Submission deadline must be in the future.");
+      return;
+    }
+
     try {
       await updateHackathon(editingHackathon.id, formData);
+
+      alert("Hackathon updated successfully!");
 
       handleCloseModal();
 
@@ -176,6 +231,17 @@ const OrganizerDashboard = () => {
           (err.response?.data?.message || err.message)
       );
     }
+  };
+
+  // Format deadline for display
+  const formatDeadline = (deadline) => {
+    if (!deadline) return "Not set";
+
+    const date = new Date(deadline);
+
+    if (isNaN(date.getTime())) return "Invalid date";
+
+    return date.toLocaleString();
   };
 
   if (loading) {
@@ -219,6 +285,7 @@ const OrganizerDashboard = () => {
               <th>ID</th>
               <th>Title</th>
               <th>Date</th>
+              <th>Submission Deadline</th>
               <th>Location</th>
               <th>Actions</th>
             </tr>
@@ -228,7 +295,7 @@ const OrganizerDashboard = () => {
             {hackathons.length === 0 ? (
               <tr>
                 <td
-                  colSpan="5"
+                  colSpan="6"
                   style={{
                     textAlign: "center",
                     color: "#64748b"
@@ -247,6 +314,8 @@ const OrganizerDashboard = () => {
                   </td>
 
                   <td>{h.date}</td>
+
+                  <td>{formatDeadline(h.submissionDeadline)}</td>
 
                   <td>{h.location}</td>
 
@@ -317,6 +386,22 @@ const OrganizerDashboard = () => {
                   onChange={handleCreateInputChange}
                   required
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Submission Deadline *</label>
+
+                <input
+                  type="datetime-local"
+                  name="submissionDeadline"
+                  value={createFormData.submissionDeadline}
+                  onChange={handleCreateInputChange}
+                  required
+                />
+
+                <small className="text-muted">
+                  Participants will not be able to submit after this time.
+                </small>
               </div>
 
               <div className="form-group">
@@ -413,6 +498,22 @@ const OrganizerDashboard = () => {
                   onChange={handleInputChange}
                   required
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Submission Deadline *</label>
+
+                <input
+                  type="datetime-local"
+                  name="submissionDeadline"
+                  value={formData.submissionDeadline}
+                  onChange={handleInputChange}
+                  required
+                />
+
+                <small className="text-muted">
+                  Participants will not be able to submit after this time.
+                </small>
               </div>
 
               <div className="form-group">
