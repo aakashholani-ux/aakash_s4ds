@@ -8,6 +8,12 @@ export const getHackathons = async () => {
   return response.data;
 };
 
+// Create a new hackathon
+export const createHackathon = async (hackathonData) => {
+  const response = await axios.post(`${API_BASE_URL}/hackathons`, hackathonData);
+  return response.data;
+};
+
 // Fetch single hackathon by ID
 export const getHackathonById = async (id) => {
   const response = await axios.get(`${API_BASE_URL}/hackathons/${id}`);
@@ -16,7 +22,10 @@ export const getHackathonById = async (id) => {
 
 // Update existing hackathon
 export const updateHackathon = async (id, hackathonData) => {
-  const response = await axios.put(`${API_BASE_URL}/hackathons/${id}`, hackathonData);
+  const response = await axios.put(
+    `${API_BASE_URL}/hackathons/${id}`,
+    hackathonData
+  );
   return response.data;
 };
 
@@ -28,7 +37,10 @@ export const deleteHackathon = async (id) => {
 
 // Submit a project
 export const submitProject = async (submissionData) => {
-  const response = await axios.post(`${API_BASE_URL}/submissions`, submissionData);
+  const response = await axios.post(
+    `${API_BASE_URL}/submissions`,
+    submissionData
+  );
   return response.data;
 };
 
@@ -40,6 +52,8 @@ export const getSubmissions = async () => {
 
 // Get submissions by hackathon ID
 export const getSubmissionsByHackathon = async (hackathonId) => {
-  const response = await axios.get(`${API_BASE_URL}/submissions/${hackathonId}`);
+  const response = await axios.get(
+    `${API_BASE_URL}/submissions/${hackathonId}`
+  );
   return response.data;
 };
