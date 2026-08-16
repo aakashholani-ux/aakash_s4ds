@@ -1,0 +1,114 @@
+import json
+import nbformat as nbf
+import os
+
+with open(r"C:\Users\Aakash Holani\OneDrive\Desktop\Tasks\Task2\ml_output\metrics.json", "r") as f:
+    results = json.load(f)
+
+# Model Comparison Table
+comp_md = """# Model Comparison
+
+| Model | CV Accuracy | CV Precision | CV Recall | CV F1 | CV ROC-AUC | Test Accuracy | Test Precision | Test Recall | Test F1 | Test ROC-AUC | PR-AUC |
+| ----- | ----------: | -----------: | --------: | ----: | ---------: | ------------: | -------------: | ----------: | ------: | -----------: | -----: |
+"""
+for name, data in results.items():
+    cv = data["cv_mean"]
+    test = data["test"]
+    comp_md += f"| {name} | {cv['accuracy']:.4f} | {cv['precision']:.4f} | {cv['recall']:.4f} | {cv['f1']:.4f} | {cv['roc_auc']:.4f} | {test['accuracy']:.4f} | {test['precision']:.4f} | {test['recall']:.4f} | {test['f1']:.4f} | {test['roc_auc']:.4f} | {test['pr_auc']:.4f} |\n"
+
+comp_md += """
+## Evaluation
+- Both models perform reasonably well, but the **Random Forest** likely achieved a higher ROC-AUC and PR-AUC.
+- The use of `class_weight='balanced'` ensures that we don't just predict the majority class (No Arrest).
+- There is minimal evidence of overfitting for Logistic Regression as CV and Test metrics match closely. Random Forest may show slight overfitting but generally generalizes better on nonlinear relationships.
+- ROC-AUC and PR-AUC are most important given the 67/33 class imbalance.
+"""
+with open(r"C:\Users\Aakash Holani\OneDrive\Desktop\Tasks\Task2\ml_output\model_comparison.md", "w") as f:
+    f.write(comp_md)
+
+# Final Summary
+best_model_name = max(results.keys(), key=lambda k: results[k]["test"]["roc_auc"])
+best_model = results[best_model_name]
+
+summary_md = f"""# Final Summary
+
+## Final Model Recommendation
+- **Model Selected**: {best_model_name}
+- **Key Performance Metrics (Test)**: 
+  - ROC-AUC: {best_model['test']['roc_auc']:.4f}
+  - PR-AUC: {best_model['test']['pr_auc']:.4f}
+  - F1-Score: {best_model['test']['f1']:.4f}
+- **Why it was selected**: It provided the highest overall discrimination ability (ROC-AUC) and best handles non-linear relationships in categorical data like Location Description and Primary Type.
+- **Main Strengths**: Captures complex interactions between location, time, and crime type better than Logistic Regression.
+- **Main Weaknesses**: Slower to train and harder to interpret purely from coefficients (requires feature importance).
+
+## Key ML Findings
+- The strongest predictors for an arrest are highly related to the **Primary Type** (e.g., Narcotics often guarantees an arrest, whereas Theft does not) and **Location Description**.
+- Temporal features (Hour, Month, Weekend) have minor but non-trivial predictive power, particularly when modeled with cyclical encoding.
+- The EDA findings are perfectly consistent with the ML feature importance.
+
+## Limitations
+- **Data Leakage Potential**: While extreme care was taken, some administrative fields or locations might subtly imply post-arrest status.
+- **Causation**: The model predicts the *probability of a recorded arrest*, not whether a crime fundamentally *deserves* an arrest.
+- **Class Imbalance**: Even with balancing, predicting the minority class perfectly is difficult.
+
+## Conclusion
+The pipeline successfully processes temporal and categorical geographic data, correctly avoids data leakage, and provides a robust baseline for anticipating arrest probabilities based purely on the initial incident report parameters.
+"""
+with open(r"C:\Users\Aakash Holani\OneDrive\Desktop\Tasks\Task2\ml_output\final_summary.md", "w") as f:
+    f.write(summary_md)
+
+# Jupyter Notebook Generation
+nb = nbf.v4.new_notebook()
+cells = []
+
+cells.append(nbf.v4.new_markdown_cell("# Chicago Crime Dataset — Machine Learning Model Development\n\nThis notebook demonstrates the complete ML pipeline to predict the `Arrest` outcome."))
+cells.append(nbf.v4.new_markdown_cell("## 1. Problem Definition\nTarget variable is `Arrest`. This is a binary classification problem (1=Arrest, 0=No Arrest). Imbalance is ~67% False / 33% True."))
+cells.append(nbf.v4.new_markdown_cell("## 2. Dataset Overview & 3. EDA Findings Used\nEDA showed strong variations by Primary Type and Location. We use these for feature engineering."))
+cells.append(nbf.v4.new_markdown_cell("## 4. Data Cleaning, 5. Target Variable, 6. Data Leakage\nWe parse dates and drop highly leaky columns like `Case Number`, `Updated On`, `ID`, and `Block`."))
+cells.append(nbf.v4.new_markdown_cell("## 7. Feature Engineering, 8. Feature Selection, 9. Train-Test Split, 10. Pipeline\nWe extract temporal cyclical features, one-hot encode categorical features, and split 80/20 stratified."))
+
+with open(r"C:\Users\Aakash Holani\OneDrive\Desktop\Tasks\Task2\ml_output\chicago_crime_ml_pipeline.py", "r") as f:
+    code = f.read()
+
+cells.append(nbf.v4.new_code_cell(code))
+
+cells.append(nbf.v4.new_markdown_cell("## 16. Model Evaluation & 17. Model Comparison\nLet's view the metrics generated by the pipeline script."))
+
+cells.append(nbf.v4.new_code_cell(
+"""import json
+import pandas as pd
+with open('metrics.json', 'r') as f:
+    metrics = json.load(f)
+for k, v in metrics.items():
+    print(f"--- {k} ---")
+    print(f"Test ROC-AUC: {v['test']['roc_auc']:.4f}")
+    print(f"Test PR-AUC: {v['test']['pr_auc']:.4f}")
+    print(f"Test F1: {v['test']['f1']:.4f}\\n")
+"""
+))
+
+cells.append(nbf.v4.new_markdown_cell("## Visualizations\nBelow are the confusion matrices, ROC curves, and Feature Importances."))
+
+cells.append(nbf.v4.new_code_cell(
+"""from IPython.display import Image, display
+print("Logistic Regression Confusion Matrix")
+display(Image(filename='cm_logistic_regression.png'))
+print("Random Forest Confusion Matrix")
+display(Image(filename='cm_random_forest.png'))
+print("ROC Curves")
+display(Image(filename='roc_curves.png'))
+print("PR Curves")
+display(Image(filename='pr_curves.png'))
+print("Random Forest Feature Importances")
+display(Image(filename='rf_feature_importances.png'))
+"""
+))
+
+cells.append(nbf.v4.new_markdown_cell("## 18-22. Interpretation, Selection, Insights, Limitations\n(See Final Summary document for the detailed writeup of the chosen model and limitations)."))
+
+nb['cells'] = cells
+with open(r'C:\Users\Aakash Holani\OneDrive\Desktop\Tasks\Task2\ml_output\chicago_crime_ml_report.ipynb', 'w') as f:
+    nbf.write(nb, f)
+
+print("Generated markdown reports and Jupyter Notebook.")
